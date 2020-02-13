@@ -1,25 +1,25 @@
 inspecode:
 
   cljfmt:
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 69 }
 
   eastwood:
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 9 }
 
   grep:
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 3 }
 
   jscpd:
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 80 }
 
   kibit:
-    machine: { cpu: 1.5 }
+    machine: { cpu: 3.5 }
     auto-fix: true
     thresholds: { num-issues: 999 }
 
   lein-test:
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 11 }
 
   misspell:
     auto-fix: true
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 12 }
