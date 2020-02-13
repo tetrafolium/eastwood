@@ -13,7 +13,7 @@ inspecode:
     thresholds: { num-issues: 80 }
 
   kibit:
-    machine: { cpu: 3.5 }
+    machine: { cpu: 2.0 }
     auto-fix: true
     thresholds: { num-issues: 999 }
 
