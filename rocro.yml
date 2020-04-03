@@ -6,6 +6,9 @@ inspecode:
   eastwood:
     thresholds: { num-issues: 9 }
 
+  fossology:
+    thresholds: { num-issues: 999 }
+
   grep:
     thresholds: { num-issues: 3 }
 
@@ -13,19 +16,21 @@ inspecode:
     thresholds: { num-issues: 80 }
 
   kibit:
+  - auto-fix: true
+    thresholds: { num-issues: 999 }
   - ignore:
     - crucible/
     - src/
     auto-fix: true
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 53 }
   - input:
     - crucible/
     auto-fix: true
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 0 }
   - input:
     - src/
     auto-fix: true
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 74 }
 
   lein-test:
     thresholds: { num-issues: 11 }
