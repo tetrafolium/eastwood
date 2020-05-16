@@ -82,8 +82,8 @@
   [exp then & else]
   (if (try (eval exp)
            (catch Exception _ false))
-    `(do ~then)
-    `(do ~@else)))
+    `(unquote then)
+    `(unquote-splicing else)))
 
 (defn regex?
   "Returns true if x is a regex"

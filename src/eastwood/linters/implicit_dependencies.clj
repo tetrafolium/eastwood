@@ -16,9 +16,7 @@
                                   (keep #(some-> % :macro namespace symbol))
                                   set)]
 
-    (not (empty? (disj macro-namespace-syms
-                       ns-sym
-                       'clojure.core)))))
+    (seq (disj macro-namespace-syms ns-sym (quote clojure.core)))))
 
 
 (defn implicit-dependencies [{:keys [asts forms] :as x} _]
@@ -38,10 +36,4 @@
                  (when (and (= (:op expr) :var)
                             (not (within-other-ns-macro? expr ns-sym)))
                    (let [implicit-ns-sym (var->ns-symbol (:var expr))]
-                     (when (not (namespace-dependency? implicit-ns-sym))
-;                       (println "META " (util/enclosing-macros expr))
-                       {:linter :implicit-dependencies
-                        :loc (:env expr)
-                        :implicit-namespace-sym implicit-ns-sym
-                        :msg (format "Var %s refers to namespace %s that isn't explicitly required."
-                                     (:form expr) implicit-ns-sym)}))))))))
+                     (when-not (namespace-dependency? implicit-ns-sym) {:linter :implicit-dependencies, :implicit-namespace-sym implicit-ns-sym, :msg (format "Var %s refers to namespace %s that isn't explicitly required." (:form expr) implicit-ns-sym), :loc (:env expr)}))))))))

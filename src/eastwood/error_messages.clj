@@ -49,7 +49,7 @@
         (error-cb (format "    (class (-> dat :ast :form))=%s (-> dat :ast :form)="
                          (class (-> dat :ast :form))))
         (error-cb (with-out-str (util/pprint-form (-> dat :ast :form)))))
-      (error-cb (with-out-str (util/pprint-form (-> dat :ast)))))
+      (error-cb (with-out-str (util/pprint-form (:ast dat)))))
     (when (contains? dat :form)
       (error-cb (format "    (:form dat)="))
       (error-cb (with-out-str (util/pprint-form (:form dat)))))
@@ -224,9 +224,7 @@ curious." eastwood-url))
            :msgs @strings})))
 
      :else
-     (do
-       {:info :show-more-details
-        :msgs (print-ex-data-details ns-sym exc)}))))
+     {:msgs (print-ex-data-details ns-sym exc), :info :show-more-details})))
 
 (defn format-exception [ns-sym ^Throwable exc]
   (let [dat (ex-data exc)
@@ -332,7 +330,7 @@ file and namespace to avoid name collisions."))))
     ;; Don't report that we stopped analyzing early if we stop on the
     ;; last namespace (it is especially bad form to print the long
     ;; message if only one namespace was being linted).
-    (if (< 0 namespaces-left)
+    (if (pos? namespaces-left)
       (format "
 Stopped analyzing namespaces after %s
 due to exception thrown.  %d namespaces left unanalyzed.

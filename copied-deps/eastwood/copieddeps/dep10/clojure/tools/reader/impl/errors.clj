@@ -37,19 +37,19 @@
   "Throws an ExceptionInfo with the given message.
    If rdr is an IndexingReader, additional information about column and line number is provided"
   [rdr & msgs]
-  (throw-ex rdr :reader-error (apply str msgs)))
+  (throw-ex rdr :reader-error (clojure.string/join msgs)))
 
 (defn eof-error
   "Throws an ExceptionInfo with the given message.
    If rdr is an IndexingReader, additional information about column and line number is provided"
   [rdr & msgs]
-  (throw-ex rdr :eof (apply str msgs)))
+  (throw-ex rdr :eof (clojure.string/join msgs)))
 
 (defn illegal-arg-error
   "Throws an ExceptionInfo with the given message.
    If rdr is an IndexingReader, additional information about column and line number is provided"
   [rdr & msgs]
-  (throw-ex rdr :illegal-argument (apply str msgs)))
+  (throw-ex rdr :illegal-argument (clojure.string/join msgs)))
 
 (defn throw-eof-delimited
   ([rdr kind line column] (throw-eof-delimited rdr kind line column nil))

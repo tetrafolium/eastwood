@@ -67,7 +67,7 @@
 (defn unlimited-use [{:keys [asts]} opt]
   (for [ast (mapcat ast/nodes asts)
         :when (use? ast)
-        :let [use-args (map remove-quote-wrapper (rest (-> ast :form)))
+        :let [use-args (map remove-quote-wrapper (rest (:form ast)))
               s (remove use-arg-ok? use-args)
               ;; Don't warn about unlimited use of clojure.test.  It
               ;; is very common, and seems harmless enough to me in
@@ -95,12 +95,12 @@
 (defn- misplaced-docstring? [expr]
   (if-let [fn-ast (util/get-fn-in-def expr)]
     (some true?
-          (for [method (-> fn-ast :methods)
+          (for [method (:methods fn-ast)
                 :let [body (:body method)]
                 :when (and (= :do (:op body))
-                           (>= (count (-> body :statements)) 1))
+                           (>= (count (:statements body)) 1))
                 :let [first-expr (-> body :statements first)]]
-            (string? (-> first-expr :form))))))
+            (string? (:form first-expr))))))
 
 (defn misplaced-docstrings [{:keys [asts]} opt]
   (for [ast (mapcat ast/nodes asts)
@@ -304,9 +304,9 @@
   ;; :column info in (-> ast var-of-ast meta).  Try another place it
   ;; can sometimes be found.
   (let [loc1 (-> ast var-of-ast meta)]
-    (if (-> loc1 :line)
+    (if (:line loc1)
       loc1
-      (-> ast :env))))
+      (:env ast))))
 
 (defn redefd-var-loc-desc [var-ast]
   (let [loc (redefd-var-loc var-ast)]
@@ -354,8 +354,7 @@
            (doseq [[i ast] (map-indexed vector ast-list)]
              (println (format "enclosing macros for def #%d of %d for Var %s"
                               (inc i) num-defs redefd-var))
-             (pp/pprint (->> (util/enclosing-macros ast)
-                             (map #(dissoc % :ast :index)))))))
+             (pp/pprint (map (fn* [p1__1435801#] (dissoc p1__1435801# :ast :index)) (util/enclosing-macros ast))))))
         w))))
 
 
@@ -473,18 +472,17 @@
     (for [ast invoke-asts
           :let [args (:args ast)
                 func (:fn ast)
-                fn-kind (-> func :op)
+                fn-kind (:op func)
                 [fn-var fn-sym]
                  (case fn-kind
-                   :var [(-> func :var)
-                         (util/var-to-fqsym (-> func :var))]
-                   :local [nil (-> func :form)]
+                   :var [(:var func)
+                         (util/var-to-fqsym (:var func))]
+                   :local [nil (:form func)]
                    [nil 'no-name])
                 arglists (:arglists func)
                 override-arglists (-> opt :warning-enable-config
                                       :wrong-arity fn-sym)
-                lint-arglists (or (-> override-arglists
-                                      :arglists-for-linting)
+                lint-arglists (or (:arglists-for-linting override-arglists)
                                   arglists)
                 loc (-> func :form meta)
 ;;                _ (println (format "fn=%s (count args)=%d lint-arglists=%s ok=%s arglist-for-arity=%s loc=%s"
@@ -521,7 +519,7 @@
            (when override-arglists
              (println "arglists overridden by Eastwood config to the following:")
              (pp/pprint lint-arglists)
-             (println "Reason:" (-> override-arglists :reason)))))
+             (println "Reason:" (:reason override-arglists)))))
         w))))
 
 
@@ -711,9 +709,8 @@
                                  (maybe-unwrap-quote
                                   (-> a :meta :val :arglists))
                                  ;; see case 2 notes above
-                                 (and (contains? (-> a :meta) :keys)
-                                      (->> (-> a :meta :keys)
-                                           (some #(= :test (get % :val)))))
+                                 (and (contains? (:meta a) :keys)
+                                      (some (fn* [p1__1644601#] (= :test (get p1__1644601# :val))) (-> a :meta :keys)))
                                  [[]]
                                  ;; see case 3 notes above
                                  :else nil)
@@ -740,7 +737,7 @@
              :linter :bad-arglists
              :msg (format "%s on var %s defined taking # args %s but :arglists metadata has # args %s"
                           (if macro? "Macro" "Function")
-                          (-> a :name)
+                          (:name a)
                           fn-sigs
                           meta-sigs)}]))))))
 
@@ -899,7 +896,7 @@
                                                    (symbol-list? option-val))
                            :map-from-symbol-to-symbol
                            (map-from-symbol-to-symbol? option-val)
-                           :true (= true option-val)))
+                           :true (true? option-val)))
                        libspec-opts))]
      (concat
       (if (seq bad-option-keys)
@@ -1045,8 +1042,7 @@
                                               "data_readers.clj")))
                                   set)]
       {:lint-warnings
-       (->> (set/difference files tfilemap maybe-data-readers)
-            (map (partial make-lint-warning :no-ns-form-found "No ns form was found in file" cwd)))})))
+       (map (partial make-lint-warning :no-ns-form-found "No ns form was found in file" cwd) (set/difference files tfilemap maybe-data-readers))})))
 
 (defn non-clojure-files [non-clojure-files linters cwd]
   (when (some #{:non-clojure-file} linters)

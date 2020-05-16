@@ -256,8 +256,7 @@
                     :class mform})))
              {:env  env
               :form mform})
-      (-> (analyze-form mform env)
-        (update-in [:raw-forms] (fnil conj ()) sym)))))
+      (update-in (analyze-form mform env) [:raw-forms] (fnil conj ()) sym))))
 
 (defn analyze-seq
   [form env]
@@ -269,9 +268,7 @@
     (let [mform (macroexpand-1 form env)]
       (if (= form mform) ;; function/special-form invocation
         (parse mform env)
-        (-> (analyze-form mform env)
-          (update-in [:raw-forms] (fnil conj ())
-                     (vary-meta form assoc ::resolved-op (resolve-sym op env))))))))
+        (update-in (analyze-form mform env) [:raw-forms] (fnil conj ()) (vary-meta form assoc :user/resolved-op (resolve-sym op env)))))))
 
 (defn parse-do
   [[_ & exprs :as form] env]
@@ -377,22 +374,13 @@
         [body tail'] (split-with' (complement (some-fn catch? finally?)) body)
         [cblocks tail] (split-with' catch? tail')
         [[fblock & fbs :as fblocks] tail] (split-with' finally? tail)]
-    (when-not (empty? tail)
-      (throw (ex-info "Only catch or finally clause can follow catch in try expression"
-                      (merge {:expr tail
-                              :form form}
-                             (-source-info form env)))))
-    (when-not (empty? fbs)
-      (throw (ex-info "Only one finally clause allowed in try expression"
-                      (merge {:expr fblocks
-                              :form form}
-                             (-source-info form env)))))
+    (when (seq tail) (throw (ex-info "Only catch or finally clause can follow catch in try expression" (merge {:expr tail, :form form} (-source-info form env)))))
+    (when (seq fbs) (throw (ex-info "Only one finally clause allowed in try expression" (merge {:expr fblocks, :form form} (-source-info form env)))))
     (let [env' (assoc env :in-try true)
           body (analyze-body body env')
           cenv (ctx env' :ctx/expr)
           cblocks (mapv #(parse-catch % cenv) cblocks)
-          fblock (when-not (empty? fblock)
-                   (analyze-body (rest fblock) (ctx env :ctx/statement)))]
+          fblock (when (seq fblock) (analyze-body (rest fblock) (ctx env :ctx/statement)))]
       (merge {:op      :try
               :env     env
               :form    form
@@ -495,22 +483,7 @@
            env (ctx env :ctx/expr)
            binds []]
       (if-let [[name init & bindings] (seq bindings)]
-        (if (not (valid-binding-symbol? name))
-          (throw (ex-info (str "Bad binding form: " name)
-                          (merge {:form form
-                                  :sym  name}
-                                 (-source-info form env))))
-          (let [init-expr (analyze-form init env)
-                bind-expr {:op       :binding
-                           :env      env
-                           :name     name
-                           :init     init-expr
-                           :form     name
-                           :local    (if loop? :loop :let)
-                           :children [:init]}]
-            (recur bindings
-                   (assoc-in env [:locals name] (dissoc-env bind-expr))
-                   (conj binds bind-expr))))
+        (if-not (valid-binding-symbol? name) (throw (ex-info (str "Bad binding form: " name) (merge {:sym name, :form form} (-source-info form env)))) (let [init-expr (analyze-form init env) bind-expr {:children [:init], :init init-expr, :name name, :op :binding, :env env, :form name, :local (if loop? :loop :let)}] (recur bindings (assoc-in env [:locals name] (dissoc-env bind-expr)) (conj binds bind-expr))))
         (let [body-env (assoc env :context (if loop? :ctx/return context))
               body (analyze-body body (merge body-env
                                              (when loop?
@@ -545,7 +518,7 @@
               (not (isa? context :ctx/return))
               "Can only recur from tail position"
 
-              (not (= (count exprs) loop-locals))
+              (not= (count exprs) loop-locals)
               (str "Mismatched argument count to recur, expected: " loop-locals
                    " args, had: " (count exprs)))]
     (throw (ex-info error-msg
@@ -676,10 +649,7 @@
 
 (defn parse-def
   [[_ sym & expr :as form] {:keys [ns] :as env}]
-  (when (not (symbol? sym))
-    (throw (ex-info (str "First argument to def must be a symbol, had: " (class sym))
-                    (merge {:form form}
-                           (-source-info form env)))))
+  (when-not (symbol? sym) (throw (ex-info (str "First argument to def must be a symbol, had: " (class sym)) (merge {:form form} (-source-info form env)))))
   (when (and (namespace sym)
              (not= *ns* (the-ns (symbol (namespace sym)))))
     (throw (ex-info "Cannot def namespace qualified symbol"
@@ -720,7 +690,7 @@
         args (when-let [[_ init] (find args :init)]
                (assoc args :init (analyze-form init (ctx env :ctx/expr))))
         init? (:init args)
-        children (into (into [] (when meta [:meta]))
+        children (into (vec (when meta [:meta]))
                        (when init? [:init]))]
 
     (merge {:op   :def
@@ -731,8 +701,7 @@
            (when meta
              {:meta meta-expr})
            args
-           (when-not (empty? children)
-             {:children children}))))
+           (when (seq children) {:children children}))))
 
 (defn parse-dot
   [[_ target & [m-or-f & args] :as form] env]

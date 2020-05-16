@@ -123,8 +123,7 @@
        (map :name)))
 
 (def all-linters
-  (->> linter-info
-       (map :name)))
+  (map :name linter-info))
 
 (defn namespace-info [ns-sym cwd-file]
   (let [uri (util/to-uri (analyze/uri-for-ns ns-sym))]
@@ -144,8 +143,7 @@
 (defn- run-linter [linter analyze-results ns-sym opts]
   (let [ns-info (namespace-info ns-sym (:cwd opts))]
     (try
-      (doall (->> ((:fn linter) analyze-results opts)
-                  (map (partial handle-lint-result linter ns-info))))
+      (doall (map (partial handle-lint-result linter ns-info) ((:fn linter) analyze-results opts)))
       (catch Throwable e
         [{:kind :lint-error
           :warn-data (format "Exception thrown by linter %s on namespace %s" (:name linter) ns-sym)
@@ -172,12 +170,7 @@
 (defn unknown-ns-keywords [namespaces known-ns-keywords desc]
   (let [keyword-set (set (filter keyword? namespaces))
         unknown-ns-keywords (set/difference keyword-set known-ns-keywords)]
-    (when-not (empty? unknown-ns-keywords)
-      (throw (ex-info "unknown-ns-keywords"
-                      {:err :unknown-ns-keywords,
-                       :err-data {:for-option desc
-                                  :unknown-ns-keywords unknown-ns-keywords
-                                  :allowed-ns-keywords known-ns-keywords}})))))
+    (when (seq unknown-ns-keywords) (throw (ex-info "unknown-ns-keywords" {:err :unknown-ns-keywords, :err-data {:allowed-ns-keywords known-ns-keywords, :for-option desc, :unknown-ns-keywords unknown-ns-keywords}})))))
 
 (defn filename-to-ns [fname]
   (-> fname
@@ -322,8 +315,7 @@
   (let [linters-orig (linter-seq->set linters)
         excluded-linters (linter-seq->set exclude-linters)
         add-linters (linter-seq->set add-linters)
-        linters-requested (-> (set/difference linters-orig excluded-linters)
-                              (set/union add-linters))
+        linters-requested (set/union (set/difference linters-orig excluded-linters) add-linters)
         known-linters (set (keys linter-name->info))
         unknown-linters (set/difference (set/union linters-requested
                                                    excluded-linters)
@@ -503,8 +495,8 @@ Return value:
   (reporting/note reporter (format "== Warnings: %d (not including reflection warnings)  Exceptions thrown: %d"
                                    warning-count
                                    error-count))
-  {:some-warnings (or (> warning-count 0)
-                      (> error-count 0))})
+  {:some-warnings (or (pos? warning-count)
+                      (pos? error-count))})
 
 (defn eastwood
   ([opts] (eastwood opts (reporting/printing-reporter opts)))

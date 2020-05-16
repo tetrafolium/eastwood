@@ -24,14 +24,7 @@
   [{:keys [class env] :as ast}]
   (if-let [handle (-> (env/deref-env) :passes-opts :validate/unresolvable-symbol-handler)]
     (handle nil class ast)
-    (if (not (.contains (str class) "."))
-      (throw (ex-info (str "Could not resolve var: " class)
-                      (merge {:var class}
-                             (source-info env))))
-
-      (throw (ex-info (str "Class not found: " class)
-                      (merge {:class class}
-                             (source-info env)))))))
+    (if-not (.contains (str class) ".") (throw (ex-info (str "Could not resolve var: " class) (merge {:var class} (source-info env)))) (throw (ex-info (str "Class not found: " class) (merge {:class class} (source-info env)))))))
 
 (defmethod -validate :maybe-host-form
   [{:keys [class field form env] :as ast}]
@@ -48,11 +41,7 @@
 
 (defmethod -validate :set!
   [{:keys [target form env] :as ast}]
-  (when (not (:assignable? target))
-    (throw (ex-info "Cannot set! non-assignable target"
-                    (merge {:target (prewalk target cleanup)
-                            :form   form}
-                           (source-info env)))))
+  (when-not (:assignable? target) (throw (ex-info "Cannot set! non-assignable target" (merge {:form form, :target (prewalk target cleanup)} (source-info env)))))
   ast)
 
 (defmethod -validate :new
@@ -68,9 +57,7 @@
             c-name (symbol (.getName class))
             argc (count args)
             tags (mapv :tag args)]
-        (let [[ctor & rest] (->> (filter #(= (count (:parameter-types %)) argc)
-                                       (u/members class c-name))
-                               (try-best-match tags))]
+        (let [[ctor & rest] (try-best-match tags (filter (fn* [p1__11983715#] (= (count (:parameter-types p1__11983715#)) argc)) (u/members class c-name)))]
           (if ctor
             (if (empty? rest)
               (let [arg-tags (mapv u/maybe-class (:parameter-types ctor))
@@ -134,13 +121,13 @@
   [ast]
   (if (:validated? ast)
     ast
-    (validate-call (assoc ast :class (u/maybe-class (:class ast))))))
+    (validate-call (update-in ast [:class] u/maybe-class))))
 
 (defmethod -validate :static-field
   [ast]
   (if (:validated? ast)
     ast
-    (assoc ast :class (u/maybe-class (:class ast)))))
+    (update-in ast [:class] u/maybe-class)))
 
 (defmethod -validate :instance-call
   [{:keys [class validated? instance] :as ast}]

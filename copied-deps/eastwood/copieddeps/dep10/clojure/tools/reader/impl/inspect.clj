@@ -14,7 +14,7 @@
   (let [n (count col)
         l (if truncate 0 (min 10 n))
         elements (map (partial inspect* true) (take l col))
-        content (apply str (interpose " " elements))
+        content (clojure.string/join " " elements)
         suffix (if (< l n) "...")]
     (str start content suffix end)))
 

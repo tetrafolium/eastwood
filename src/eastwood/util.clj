@@ -16,9 +16,9 @@
   "Evaluates expr and returns a vector containing the expression's
 return value followed by the time it took to evaluate in millisec."
   [expr]
-  `(let [start# (. System (nanoTime))
+  `(let [start# (System/nanoTime)
          ret# ~expr
-         elapsed-msec# (/ (double (- (. System (nanoTime)) start#)) 1000000.0)]
+         elapsed-msec# (/ (double (- (System/nanoTime) start#)) 1000000.0)]
      [ret# elapsed-msec#]))
 
 (defn min-clojure-version [min-version-vector]
@@ -56,9 +56,7 @@ return value followed by the time it took to evaluate in millisec."
     (case (:op init)
       :fn init
       :with-meta (let [init-expr (:expr init)]
-                   (if (= :fn (:op init-expr))
-                     init-expr
-                     nil))
+                   (when (= :fn (:op init-expr)) init-expr))
       nil)))
 
  ; first char is upper-case
@@ -251,9 +249,7 @@ more interesting keys earlier."
 
 
 (defn nil-safe-rseq [s]
-  (if (nil? s)
-    nil
-    (rseq s)))
+  (when-not (nil? s) (rseq s)))
 
 
 (defn keys-in-map
@@ -265,9 +261,7 @@ element of key-set is a key of m."
                               (conj result item)
                               result))
                           (empty key-set) key-set)]
-    (if (empty? keys-in-m)
-      nil
-      keys-in-m)))
+    (when (seq keys-in-m) keys-in-m)))
 
 
 (defn sorted-map-with-non-keyword-keys? [x]
@@ -720,8 +714,8 @@ of these kind."
       (ret-expr-in-try-body? ast)))
 
 (defn deftype-for-fieldless-defrecord [ast]
-  (and (= :deftype (-> ast :op))
-       (let [flds (map :form (-> ast :fields))]
+  (and (= :deftype (:op ast))
+       (let [flds (map :form (:fields ast))]
          (or (= flds '(__meta __extmap))
              ;; Clojure 1.9.0 performance improvement change for
              ;; CLJ-1224 adds "hidden" fields __hash and __hasheq for
@@ -730,12 +724,10 @@ of these kind."
 
 (defn inside-fieldless-defrecord [ast]
   (some deftype-for-fieldless-defrecord
-        (nil-safe-rseq (-> ast :eastwood/ancestors))))
+        (nil-safe-rseq (:eastwood/ancestors ast))))
 
 (defn ns-form-asts [asts]
-  (->> (mapcat ast/nodes asts)
-       (filter #(= 'clojure.core/ns
-                   (-> % :raw-forms first fqsym-of-raw-form)))))
+  (filter (fn* [p1__4396505#] (= (quote clojure.core/ns) (-> p1__4396505# :raw-forms first fqsym-of-raw-form))) (mapcat ast/nodes asts)))
 
 (defn get-in-ast [ast kvec-op-pairs]
   (let [sentinel (Object.)]
@@ -811,7 +803,7 @@ StringWriter."
   (println "----------")
   (doseq [[i a] (map-indexed
                  vector
-                 (concat (-> ast :eastwood/ancestors) [ast]))]
+                 (concat (:eastwood/ancestors ast) [ast]))]
     (println (format "level %d:" i))
     (doseq [[j f] (map-indexed vector (:raw-forms a))]
       (println (format "  raw-form %2d first=%s"
@@ -841,7 +833,7 @@ StringWriter."
   (apply concat
     (for [[i a] (map-indexed vector
                              (cons ast
-                                   (nil-safe-rseq (-> ast :eastwood/ancestors))))]
+                                   (nil-safe-rseq (:eastwood/ancestors ast))))]
       (for [[j f] (map-indexed vector
                                (reverse (:raw-forms a)))]
         (into empty-enclosing-macro-map
@@ -866,8 +858,7 @@ StringWriter."
           (pp/pprint (dissoc w (:linter w)))
           (when (extra-flags :enclosing-macros)
             (println "was generated from code with the following enclosing macro expansions:")
-            (pp/pprint (->> (enclosing-macros ast)
-                            (map #(dissoc % :ast :index)))))
+            (pp/pprint (map (fn* [p1__4504973#] (dissoc p1__4504973# :ast :index)) (enclosing-macros ast))))
           (when f (f))
           (when (d :ast)
             (println "The code has this AST:")
@@ -1028,7 +1019,7 @@ StringWriter."
 
 (defn print-var-info-summary [var-info-map opts]
   (let [file-vars-by-ns (->> (keys var-info-map)
-                             (group-by #(namespace %))
+                             (group-by namespace)
                              (map-vals #(set (map name %))))
         ;; Try to require the namespaces mentioned in the file, but
         ;; mask any exceptions that occur when trying.
@@ -1075,12 +1066,12 @@ StringWriter."
                    (count file-but-not-loaded)
                    "-")
                  ns-name))
-        (when (> (count file-vars) 0)
-          (when (> (count loaded-but-not-file) 0)
+        (when (pos? (count file-vars))
+          (when (pos? (count loaded-but-not-file))
             (println (format "        Loaded but not in file:"))
             (doseq [name (sort loaded-but-not-file)]
               (println (format "        %s" name))))
-          (when (> (count file-but-not-loaded) 0)
+          (when (pos? (count file-but-not-loaded))
             (println (format "            In file but not loaded:"))
             (doseq [name (sort file-but-not-loaded)]
               (println (format "            %s" name)))))))))

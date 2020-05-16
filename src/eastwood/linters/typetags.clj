@@ -35,8 +35,7 @@ significance needed by the user."
 
 
 (defn wrong-tag-from-analyzer [{:keys [asts]} opt]
-  (for [{:keys [op name form env] :as ast} (->> (mapcat ast/nodes asts)
-                                                (filter has-wrong-tag?))
+  (for [{:keys [op name form env] :as ast} (filter has-wrong-tag? (mapcat ast/nodes asts))
         :let [wrong-tag-keys (util/keys-in-map keys-indicating-wrong-tag ast)
 ;;              _ (do
 ;;                  (when wrong-tag-keys
@@ -50,7 +49,7 @@ significance needed by the user."
                          (= op :fn-method))
                     (let [m (or (pass/has-code-loc? (meta form))
                                 (pass/code-loc (pass/nearest-ast-with-loc ast)))]
-                      [:fn-method (-> ast :eastwood/tag) m])
+                      [:fn-method (:eastwood/tag ast) m])
                     
                     ;; This set of wrong-tag-keys sometimes occurs for
                     ;; op :local, but since those can be multiple
@@ -79,7 +78,7 @@ significance needed by the user."
 
                     (and (= wrong-tag-keys #{:eastwood/tag :eastwood/o-tag})
                          (= op :invoke))
-                    [:invoke (-> ast :tag) (meta form)]
+                    [:invoke (:tag ast) (meta form)]
 
                     (or (and (= wrong-tag-keys #{:eastwood/tag :eastwood/o-tag})
                              (#{:binding :do} op))
@@ -154,7 +153,7 @@ significance needed by the user."
                     (-> ast :var meta :ns))
        :invoke (format "Tag: %s for return type of function %s should be Java class name (fully qualified if not in java.lang package).  It may be defined in another namespace."
                        (replace-variable-tag-part tag)
-                       (-> form first))
+                       (first form))
        :fn-method (format "Tag: %s for return type of function method: %s should be Java class name (fully qualified if not in java.lang package)"
                           (replace-variable-tag-part tag)
                           form))}))
@@ -219,7 +218,7 @@ significance needed by the user."
     {:loc loc
      :linter :wrong-tag
      :msg (format "Tag: %s for return type of function on arg vector: %s should be fully qualified Java class name, or else it may cause exception if used from another namespace.  This is only an issue for Clojure 1.7 and earlier.  Clojure 1.8 fixes it (CLJ-1232 https://dev.clojure.org/jira/browse/CLJ-1232)."
-                  tag (-> form first))}))
+                  tag (first form))}))
 
 (defn wrong-tag [& args]
   (concat (apply wrong-tag-from-analyzer args)

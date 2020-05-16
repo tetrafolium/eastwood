@@ -159,7 +159,7 @@
 (defmethod -emit-form :def
   [{:keys [name doc init]} opts]
   (let [name (if-let [arglists (:arglists (meta name))]
-               (with-meta name (assoc (meta name) :arglists (list 'quote arglists)))
+               (vary-meta name assoc :arglists (list (quote quote) arglists))
                name)]
     `(def ~name ~@(when doc [doc]) ~@(when init [(-emit-form* init opts)]))))
 

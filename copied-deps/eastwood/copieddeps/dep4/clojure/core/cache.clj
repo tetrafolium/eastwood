@@ -52,7 +52,7 @@
   ([wrap-fn value-fn cache item]
     (if (eastwood.copieddeps.dep4.clojure.core.cache/has? cache item)
       (eastwood.copieddeps.dep4.clojure.core.cache/hit cache item)
-      (eastwood.copieddeps.dep4.clojure.core.cache/miss cache item (wrap-fn #(value-fn %) item)))))
+      (eastwood.copieddeps.dep4.clojure.core.cache/miss cache item (wrap-fn value-fn item)))))
 
 (defmacro defcache
   [type-name fields & specifics]
@@ -421,26 +421,7 @@
     (contains? cache item))
   (hit [_ item]
     (let [tick+ (inc tick)]
-      (if (not (contains? lruS item))
-                                        ; (2.3) item ∉ S ∧ item ∈ Q
-        (LIRSCache. cache (assoc lruS item tick+) (assoc lruQ item tick+) tick+ limitS limitQ)
-        (let [k (apply min-key lruS (keys lruS))]
-          (if (contains? lruQ item)
-                                        ; (2.2) item ∈ S ∧ item ∈ Q
-            (let [new-lruQ (-> lruQ (dissoc item) (assoc k tick+))]
-              (LIRSCache. cache
-                          (-> lruS (dissoc k) (assoc item tick+) (prune-stack new-lruQ cache))
-                          new-lruQ
-                          tick+
-                          limitS
-                          limitQ))
-                                        ; (2.1) item ∈ S ∧ item ∉ Q
-            (LIRSCache. cache
-                        (-> lruS (assoc item tick+) (prune-stack lruQ cache))
-                        lruQ
-                        tick+
-                        limitS
-                        limitQ))))))
+      (if-not (contains? lruS item) (LIRSCache. cache (assoc lruS item tick+) (assoc lruQ item tick+) tick+ limitS limitQ) (let [k (apply min-key lruS (keys lruS))] (if (contains? lruQ item) (let [new-lruQ (-> lruQ (dissoc item) (assoc k tick+))] (LIRSCache. cache (-> lruS (dissoc k) (assoc item tick+) (prune-stack new-lruQ cache)) new-lruQ tick+ limitS limitQ)) (LIRSCache. cache (-> lruS (assoc item tick+) (prune-stack lruQ cache)) lruQ tick+ limitS limitQ))))))
 
   (miss [_ item result]
     (let [tick+ (inc tick)]
@@ -499,15 +480,11 @@
   CacheProtocol
   (lookup [_ item]
     (when-let [^SoftReference r (get cache (or item ::nil))]
-      (if (= ::nil (.get r))
-        nil
-        (.get r))))
+      (when-not (= :user/nil (.get r)) (.get r))))
   (lookup [_ item not-found]
     (if-let [^SoftReference r (get cache (or item ::nil))]
       (if-let [v (.get r)]
-        (if (= ::nil v)
-          nil
-          v)
+        (when-not (= :user/nil v) v)
         not-found)
       not-found))
   (has? [_ item]
@@ -575,7 +552,7 @@
    will be used as the cache seed values.  Otherwise, there are no guarantees about
    the elements in the resulting cache."
   [base & {threshold :threshold :or {threshold 32}}]
-  {:pre [(number? threshold) (< 0 threshold)
+  {:pre [(number? threshold) (pos? threshold)
          (map? base)]
    :post [(== threshold (count (.q ^FIFOCache %)))]}
   (eastwood.copieddeps.dep4.clojure.core.cache/seed (FIFOCache. {} clojure.lang.PersistentQueue/EMPTY threshold) base))
@@ -587,7 +564,7 @@
    This function takes an optional `:threshold` argument that defines the maximum number
    of elements in the cache before the LRU semantics apply (default is 32)."
   [base & {threshold :threshold :or {threshold 32}}]
-  {:pre [(number? threshold) (< 0 threshold)
+  {:pre [(number? threshold) (pos? threshold)
          (map? base)]}
   (eastwood.copieddeps.dep4.clojure.core.cache/seed (LRUCache. {} (eastwood.copieddeps.dep5.clojure.data.priority-map/priority-map) 0 threshold) base))
 
@@ -608,7 +585,7 @@
    This function takes an optional `:threshold` argument that defines the maximum number
    of elements in the cache before the LU semantics apply (default is 32)."
   [base & {threshold :threshold :or {threshold 32}}]
-  {:pre [(number? threshold) (< 0 threshold)
+  {:pre [(number? threshold) (pos? threshold)
          (map? base)]}
   (eastwood.copieddeps.dep4.clojure.core.cache/seed (LUCache. {} (eastwood.copieddeps.dep5.clojure.data.priority-map/priority-map) threshold) base))
 
@@ -618,8 +595,8 @@
   [base & {:keys [s-history-limit q-history-limit]
            :or {s-history-limit 32
                 q-history-limit 32}}]
-  {:pre [(number? s-history-limit) (< 0 s-history-limit)
-         (number? q-history-limit) (< 0 q-history-limit)
+  {:pre [(number? s-history-limit) (pos? s-history-limit)
+         (number? q-history-limit) (pos? q-history-limit)
          (map? base)]}
   (seed (LIRSCache. {} {} {} 0 s-history-limit q-history-limit) base))
 

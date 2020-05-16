@@ -95,7 +95,7 @@
 
 (defn -analyze-host-expr
   [target-type m-or-f target-expr class env]
-  (let [target-class (-> target-expr :tag)
+  (let [target-class (:tag target-expr)
         [field method] (if class
                          [(maybe-static-field (list '. class m-or-f))
                           (maybe-static-method (list '. class m-or-f))]

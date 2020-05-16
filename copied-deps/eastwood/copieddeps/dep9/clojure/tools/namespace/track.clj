@@ -104,9 +104,7 @@
                 (concat (reverse (sort (dep/topo-comparator deps) changed))
                         unload))
       ::load (distinct
-              (filter (complement (set removed-names))
-                      (concat (sort (dep/topo-comparator new-deps) changed)
-                              load))))))
+              (remove (set removed-names) (concat (sort (dep/topo-comparator new-deps) changed) load))))))
 
 (defn tracker
   "Returns a new, empty dependency tracker"

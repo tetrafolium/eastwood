@@ -37,7 +37,7 @@
   "If *env* is not bound it binds it to env before executing the body"
   [env & body]
   `(if *env*
-     (do ~@body)
+     (unquote-splicing body)
      (with-env ~env
        ~@body)))
 

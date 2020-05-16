@@ -52,8 +52,7 @@
   the JAR file."
   [^JarFile jar-file]
   (map #(.getName ^JarEntry %)
-       (filter #(not (.isDirectory ^JarEntry %))
-               (enumeration-seq (.entries jar-file)))))
+       (remove .isDirectory (enumeration-seq (.entries jar-file)))))
 
 (defn system-classpath
   "Returns a sequence of File paths from the 'java.class.path' system
