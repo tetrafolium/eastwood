@@ -64,7 +64,7 @@
 (defn ^:private d-lay [fun]
   (->RetryingDelay fun false nil))
 
-;; # Auxilliary functions
+;; # Auxiliary functions
 
 (defn through* [cache f item]
   "The basic hit/miss logic for the cache system based on `core.cache/through`.
@@ -190,7 +190,7 @@
 (defn ^{:private true} !! [c]
   (println "WARNING - Deprecated construction method for"
            c
-           "cache; prefered way is:"
+           "cache; preferred way is:"
            (str "(eastwood.copieddeps.dep3.clojure.core.memoize/" c " function <base> <:" c "/threshold num>)")))
 
 (defmacro ^{:private true} def-deprecated [nom ds & arities]

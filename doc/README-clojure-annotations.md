@@ -447,7 +447,7 @@ this with [`core.typed.rt`][CoreTypedRt].
     [10:46:27] technomancy: and the linter shouldn't descend into it, right?
     [10:46:36] andyf_: Bronsa: I'm not expecting people will want to disable keyword warnings that way, necessarily, but I wouldn't want to disallow it
     [10:46:36] technomancy: (forget the identity bit)
-    [10:46:59] Bronsa: andyf_: I think at this point having evaluated all the possibile solutions metadata seems like the best one. we can use a gloabal table of keywords to ignore
+    [10:46:59] Bronsa: andyf_: I think at this point having evaluated all the possible solutions metadata seems like the best one. we can use a gloabal table of keywords to ignore
     [10:47:23] Bronsa: technomancy: ^{:eastwood/ignore-keywords #{:foo}} (macro ... :foo ..) ?
     [10:47:39] technomancy: right
     [10:48:03] technomancy: or just ^:eastwood/ignore-keywords if you are lazy and sacrifice granularity

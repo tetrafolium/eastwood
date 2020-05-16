@@ -28,7 +28,7 @@
    nil))
 
 ;; this is a terrible hack to
-;; stop everyting from printing all over the place
+;; stop everything from printing all over the place
 (defn string-builder []
   (let [strings (atom [])]
     [strings (fn [str]

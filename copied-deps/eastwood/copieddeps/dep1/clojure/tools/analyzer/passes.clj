@@ -105,7 +105,7 @@
           l
           (recur ls))
         (if-let [p (first (remove :affects free))]
-          ;; pick a random avaliable non-looping pass
+          ;; pick a random available non-looping pass
           p
           (throw (ex-info (str "looping pass doesn't encompass affected passes: " (:name l))
                           {:pass l})))))
@@ -191,7 +191,7 @@
                  - :any  if the pass can be composed with other passes in both a prewalk
                          or a postwalk
    * :affects  a set of Vars, this pass must be the last in the same tree traversal that all
-               the specified passes must partecipate in
+               the specified passes must participate in
                This pass must take a function as argument and return the actual pass, the
                argument represents the reified tree traversal which the pass can use to
                control a recursive traversal, implies :depends
