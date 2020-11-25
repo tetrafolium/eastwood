@@ -25,3 +25,10 @@ inspecode:
   misspell:
     auto-fix: true
     thresholds: { num-issues: 12 }
+
+  shellcheck:
+    thresholds: { num-issues: 999 }
+
+  unused:
+    options: [--single-occurrence, --all-likelihoods]
+    thresholds: { num-issues: 999 }
