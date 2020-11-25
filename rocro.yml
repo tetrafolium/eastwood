@@ -7,13 +7,13 @@ inspecode:
     thresholds: { num-issues: 9 }
 
   fossology:
-    thresholds: { num-issues: 15 }
+    thresholds: { num-issues: 60 }
 
   grep:
     thresholds: { num-issues: 3 }
 
   jscpd:
-    thresholds: { num-issues: 80 }
+    thresholds: { num-issues: 73 }
 
   kibit:
     auto-fix: true
@@ -27,8 +27,8 @@ inspecode:
     thresholds: { num-issues: 12 }
 
   shellcheck:
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 106 }
 
   unused:
     options: [--single-occurrence, --all-likelihoods]
-    thresholds: { num-issues: 999 }
+    thresholds: { num-issues: 0 }
