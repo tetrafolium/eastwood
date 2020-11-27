@@ -518,7 +518,7 @@
          (doto (env/with-env (mmerge (env/deref-env)
                                      {:passes-opts (get opts :passes-opts default-passes-opts)})
                  (run-passes (-analyze form env)))
-           (do (update-ns-map!)))))))
+           (update-ns-map!))))))
 
 (deftype ExceptionThrown [e ast])
 

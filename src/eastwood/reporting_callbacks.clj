@@ -17,10 +17,10 @@
                    ;; nil instead of decimal numbers for
                    ;; line/col number.  Make up values if we
                    ;; don't know them.
-                   (or (-> warn-data :line) "1")
-                   (or (-> warn-data :column) "1")
-                   (name (-> warn-data :linter))
-                   (-> warn-data :msg))))
+                   (or (:line warn-data) "1")
+                   (or (:column warn-data) "1")
+                   (name (:linter warn-data))
+                   (:msg warn-data))))
 
 (defrecord PrintingReporter [opts warn-writer])
 

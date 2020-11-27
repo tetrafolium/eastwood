@@ -248,12 +248,12 @@
        (cond
         (and (not (list? f))
              (constant-expr? f))
-        [(let [meta-loc (-> f meta)
+        [(let [meta-loc (meta f)
                loc (or (pass/has-code-loc? meta-loc)
                        (pass/code-loc (pass/nearest-ast-with-loc ast)))]
            {:loc loc :linter :suspicious-test,
             :msg (format "Found constant form%s with class %s inside %s.  Did you intend to compare its value to something else inside of an 'is' expresssion?"
-                         (cond (-> meta-loc :line) ""
+                         (cond (:line meta-loc) ""
                                (string? f) (str " \"" f "\"")
                                :else (str " " f))
                          (if f (.getName (class f)) "nil") form-type)})]
@@ -266,7 +266,7 @@
               var-info (and cc-sym (var-info-map cc-sym))
 ;;              _ (println (format "dbx: predicate-forms ff=%s cc-sym=%s var-info=%s"
 ;;                                 ff cc-sym var-info))
-              loc (-> ff meta)]
+              loc (meta ff)]
           (cond
            (and var-info (get var-info :predicate))
            [{:loc loc
@@ -513,7 +513,7 @@
 
 (defn and-or-self-expansion? [ast]
   (let [parent-ast (-> ast :eastwood/ancestors peek)]
-    (and (= :if (-> parent-ast :op))
+    (and (= :if (:op parent-ast))
          (= :local (-> parent-ast :test :op))
          (#{'clojure.core/and 'clojure.core/or}
           (-> ast :raw-forms first util/fqsym-of-raw-form)))))
@@ -521,7 +521,7 @@
 
 (defn cond-self-expansion? [ast]
   (let [parent-ast (-> ast :eastwood/ancestors peek)]
-    (and (= :if (-> parent-ast :op))
+    (and (= :if (:op parent-ast))
          (#{'clojure.core/cond}
           (-> ast :raw-forms first util/fqsym-of-raw-form)))))
 
@@ -572,7 +572,7 @@
                                            :macro-symbol macro-sym}
                    :msg (format "%s called with %d args.  (%s%s) always returns %s.  Perhaps there are misplaced parentheses?"
                                 (name macro-sym) num-args (name macro-sym)
-                                (if (> num-args 0)
+                                (if (pos? num-args)
                                   (str " " (str/join " " (:args info)))
                                   "")
                                 (if (= "" (:ret-val info))
@@ -646,9 +646,9 @@
         (let [^clojure.lang.Var fn-var (-> ast :fn :var)
               fn-sym (.sym fn-var)
               fn-fqsym (util/var-to-fqsym fn-var)
-              num-args (count (-> ast :args))
-              form (-> ast :form)
-              loc (-> form meta)
+              num-args (count (:args ast))
+              form (:form ast)
+              loc (meta form)
               suspicious-args (core-fns-that-do-little fn-fqsym)
               info (get suspicious-args num-args)]
           (if (contains? suspicious-args num-args)
@@ -656,7 +656,7 @@
              :linter :suspicious-expression,
              :msg (format "%s called with %d args.  (%s%s) always returns %s.  Perhaps there are misplaced parentheses?"
                           fn-sym num-args fn-sym
-                          (if (> num-args 0)
+                          (if (pos? num-args)
                             (str " " (str/join " " (:args info)))
                             "")
                           (if (= "" (:ret-val info))
@@ -729,7 +729,7 @@
        :linter :suspicious-expression
        :msg (format "%s called with %d args.  (%s%s) always returns %s.  Perhaps there are misplaced parentheses?"
                     (name fn-sym) num-args (name fn-sym)
-                    (if (> num-args 0)
+                    (if (pos? num-args)
                       (str " " (str/join " " (:args info)))
                       "")
                     (if (= "" (:ret-val info))
@@ -838,8 +838,8 @@ warning, that contains the constant value."
 (defn if-with-predictable-test [ast]
   (if (and (= :if (:op ast))
            (not (assert-false-expansion? ast)))
-    (or (constant-ast (-> ast :test))
-        (logical-true-test (-> ast :test)))))
+    (or (constant-ast (:test ast))
+        (logical-true-test (:test ast)))))
 
 
 (defn transform-ns-keyword [kw]
@@ -865,8 +865,8 @@ warning, that contains the constant value."
                                   (if-let [x (if-with-predictable-test %)]
                                     [% x]))))]
     (for [[ast constant-test-ast] const-tests
-          :let [test-form (-> constant-test-ast :form)
-                form (-> ast :form)
+          :let [test-form (:form constant-test-ast)
+                form (:form ast)
                 loc (or (pass/has-code-loc? (-> ast :form meta))
                         (pass/code-loc (pass/nearest-ast-with-loc ast)))
                 w {:loc loc
@@ -985,48 +985,7 @@ warning, that contains the constant value."
 ;;                   kind method-num conditions
 ;;                   (vector? conditions)
 ;;                   (class conditions)))
-  (if (not (vector? conditions))
-    [(format "All function %s should be in a vector.  Found: %s"
-            condition-desc-middle (pr-str conditions))]
-    
-    (remove nil?
-     (for [[condition test-ast]
-           (map-indexed (fn [i condition]
-                          [condition
-                           (ast-of-condition-test kind ast method-num i
-                                                  condition)])
-                        conditions)]
-;;       (do
-;;         (println (format "dbg3: kind=%s line=%d :op=%s condition=%s :form=%s same?=%s"
-;;                          kind (:line (meta conditions))
-;;                          (:op test-ast)
-;;                          condition (:form test-ast)
-;;                          (= condition (:form test-ast))))
-       (cond
-        (= :const (:op test-ast))
-        (format "%s found that is always logical true or always logical false.  Should be changed to function call?  %s"
-                condition-desc-begin (pr-str condition))
-
-        (= :var (:op test-ast))
-        (format "%s found that is probably always logical true or always logical false.  Should be changed to function call?  %s"
-                condition-desc-begin (pr-str condition))
-        
-        ;; In this case, probably the developer wanted to assert that
-        ;; a function arg was logical true, i.e. neither nil nor
-        ;; false.
-        (= :local (:op test-ast))
-        nil
-        
-        ;; The following kinds of things are 'complex' enough that we
-        ;; will not try to do any fancy calculation to determine
-        ;; whether their results are constant or not.
-        (#{:invoke :static-call :let :if :instance? :keyword-invoke} (:op test-ast))
-        nil
-
-        :else
-        (println (format "dbg wrong-pre-post: condition=%s line=%d test-ast :op=%s"
-                         condition (:line (meta conditions))
-                         (:op test-ast))))))))
+  (if-not (vector? conditions) [(format "All function %s should be in a vector.  Found: %s" condition-desc-middle (pr-str conditions))] (remove nil? (for [[condition test-ast] (map-indexed (fn [i condition] [condition (ast-of-condition-test kind ast method-num i condition)]) conditions)] (cond (= :const (:op test-ast)) (format "%s found that is always logical true or always logical false.  Should be changed to function call?  %s" condition-desc-begin (pr-str condition)) (= :var (:op test-ast)) (format "%s found that is probably always logical true or always logical false.  Should be changed to function call?  %s" condition-desc-begin (pr-str condition)) (= :local (:op test-ast)) nil (#{:let :if :instance? :keyword-invoke :invoke :static-call} (:op test-ast)) nil :else (println (format "dbg wrong-pre-post: condition=%s line=%d test-ast :op=%s" condition (:line (meta conditions)) (:op test-ast))))))))
 ;;)
 
 
@@ -1158,9 +1117,9 @@ warning, that contains the constant value."
           has-as? (and (not top-level-arg-vector?)
                        (>= n 2)
                        (= :as (x (- n 2)))
-                       (my-local-name? (x (- n 1))))
+                       (my-local-name? (x (dec n))))
           as-form-info (if has-as?
-                         (local-name-info (x (- n 1)) loc)
+                         (local-name-info (x (dec n)) loc)
                          {})
           x (if has-as?
               (subvec x 0 (- n 2))
@@ -1170,7 +1129,7 @@ warning, that contains the constant value."
           has-amp? (and (>= n 2)
                         (= '& (x (- n 2))))
           amp-form-info (if has-amp?
-                          (let [amp-form (x (- n 1))]
+                          (let [amp-form (x (dec n))]
                             (binding-form-info amp-form
                                                (better-loc loc amp-form)))
                           {})
@@ -1183,11 +1142,11 @@ warning, that contains the constant value."
           all-forms (concat initial-forms [amp-form-info as-form-info])
           local-names (mapcat #(if (:nested-info %)
                                  (-> % :nested-info :local-names)
-                                 (-> % :local-names))
+                                 (:local-names %))
                               all-forms)
           warnings (mapcat #(if (:nested-info %)
                               (-> % :nested-info :warnings)
-                              (-> % :warnings))
+                              (:warnings %))
                            all-forms)]
       {:result all-good?
        :kind :seq-binding-form
@@ -1364,8 +1323,7 @@ wish."
 ;                     (println "dbg (type local-names):" (type local-names))
 ;                     (pp/pprint local-names)
 ;                     (flush))
-                 dups (->> (duplicate-local-names local-names)
-                           (remove #(dont-warn-for-symbol? (:local-name %))))]
+                 dups (remove (fn* [p1__3077529#] (dont-warn-for-symbol? (:local-name p1__3077529#))) (duplicate-local-names local-names))]
              (concat
               (map (fn [dup]
                      {:loc (:loc dup)

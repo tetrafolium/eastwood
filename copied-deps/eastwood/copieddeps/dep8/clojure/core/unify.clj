@@ -36,7 +36,7 @@
 (defn- occurs?
   "Does v occur anywhere inside expr?"
   [variable? v expr binds]
-  (loop [z (zip/zipper composite? seq #(do % %2) [expr])]
+  (loop [z (zip/zipper composite? seq do [expr])]
     (let [current (zip/node z)]
       (cond 
         (zip/end? z) false

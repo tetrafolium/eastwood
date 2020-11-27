@@ -326,7 +326,7 @@
 
 (defn prim-interface [tags]
   (when (some primitive? tags)
-    (let [sig (apply str (mapv #(.toUpperCase (subs (.getSimpleName ^Class %) 0 1)) tags))]
+    (let [sig (clojure.string/join (mapv (fn* [p1__10485431#] (.toUpperCase (subs (.getSimpleName p1__10485431#) 0 1))) tags))]
       (maybe-class (str "clojure.lang.IFn$" sig)))))
 
 (defn tag-match? [arg-tags meth]

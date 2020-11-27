@@ -17,25 +17,7 @@
 (declare collect-closed-overs*)
 (defn -collect-closed-overs
   [ast]
-  (-> (case (:op ast)
-       :letfn ;; seed letfn bindings
-       (let [bindings (:bindings ast)]
-         (doseq [{:keys [name]} bindings]
-           (swap! *collects* #(update-in % [:locals] conj name)))
-         ast)
-       :binding
-       (let [name (:name ast)]
-         (if (= :field (:local ast))
-           (swap! *collects* #(assoc-in % [:closed-overs name] (cleanup ast))) ;; special-case: put directly as closed-overs
-           (swap! *collects* #(update-in % [:locals] conj name)))                        ;; register the local as a frame-local locals
-         ast)
-       :local
-       (let [name (:name ast)]
-         (when-not ((:locals @*collects*) name)                                         ;; if the local is not in the frame-local locals
-           (swap! *collects* #(assoc-in % [:closed-overs name] (cleanup ast)))) ;; then it's from the outer frame locals, thus a closed-over
-         ast)
-       ast)
-    (update-children collect-closed-overs*))) ;; recursively collect closed-overs in the children nodes
+  (update-children (case (:op ast) :letfn (let [bindings (:bindings ast)] (doseq [{:keys [name]} bindings] (swap! *collects* (fn* [p1__6282385#] (update-in p1__6282385# [:locals] conj name)))) ast) :binding (let [name (:name ast)] (if (= :field (:local ast)) (swap! *collects* (fn* [p1__6282387#] (assoc-in p1__6282387# [:closed-overs name] (cleanup ast)))) (swap! *collects* (fn* [p1__6282389#] (update-in p1__6282389# [:locals] conj name)))) ast) :local (let [name (:name ast)] (when-not ((:locals (deref *collects*)) name) (swap! *collects* (fn* [p1__6282391#] (assoc-in p1__6282391# [:closed-overs name] (cleanup ast))))) ast) ast) collect-closed-overs*)) ;; recursively collect closed-overs in the children nodes
 
 (defn collect-closed-overs*
   [{:keys [op] :as ast}]

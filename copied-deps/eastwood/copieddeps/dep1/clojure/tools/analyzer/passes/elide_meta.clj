@@ -52,13 +52,13 @@
       (if (or (not meta)
               (= new-meta (:form meta)))
         ast
-        (if (not (empty? new-meta))
+        (if (seq new-meta)
           (assoc-in ast [:meta :val] new-meta)
           (-> ast
             (update-in [:val] with-meta nil)
             (dissoc :children :meta))))
       :with-meta
-      (if (not (empty? new-meta))
+      (if (seq new-meta)
         (if (= new-meta (:form meta))
           ast
           (assoc ast :meta (replace-meta meta new-meta)))
@@ -69,7 +69,7 @@
                 :statements []
                 :children   [:statements :ret]}))
       :def
-      (if (not (empty? new-meta))
+      (if (seq new-meta)
         (if (= new-meta (:form meta))
           ast
           (assoc ast :meta (replace-meta meta new-meta)))

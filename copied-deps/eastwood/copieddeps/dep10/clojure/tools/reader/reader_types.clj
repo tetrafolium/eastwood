@@ -392,7 +392,7 @@
   `(if (and (source-logging-reader? ~reader)
             (not (whitespace? (peek-char ~reader))))
      (log-source* ~reader (^:once fn* [] ~@body))
-     (do ~@body)))
+     (unquote-splicing body)))
 
 (defn line-start?
   "Returns true if rdr is an IndexingReader and the current char starts a new line"

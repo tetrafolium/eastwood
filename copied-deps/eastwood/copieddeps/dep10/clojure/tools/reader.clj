@@ -379,7 +379,7 @@
                     (assoc m :line line :column column)
                     m)]
             (if (instance? IObj o)
-              (with-meta o (merge (meta o) m))
+              (vary-meta o merge m)
               (reset-meta! o m)))
           (err/throw-bad-metadata-target rdr o))))))
 
@@ -428,7 +428,7 @@
 (defn- check-eof-error
   [form rdr ^long first-line]
   (when (identical? form READ_EOF)
-    (err/throw-eof-error rdr (and (< first-line 0) first-line))))
+    (err/throw-eof-error rdr (and (neg? first-line) first-line))))
 
 (defn- check-reserved-features
   [rdr form]
@@ -438,7 +438,7 @@
 (defn- check-invalid-read-cond
   [form rdr ^long first-line]
   (when (identical? form READ_FINISHED)
-    (if (< first-line 0)
+    (if (neg? first-line)
       (err/reader-error rdr "read-cond requires an even number of forms")
       (err/reader-error rdr "read-cond starting on line " first-line " requires an even number of forms"))))
 
@@ -503,8 +503,7 @@
 
 (defn- read-cond
   [rdr _ opts pending-forms]
-  (when (not (and opts (#{:allow :preserve} (:read-cond opts))))
-    (throw (RuntimeException. "Conditional read not allowed")))
+  (when-not (and opts (#{:preserve :allow} (:read-cond opts))) (throw (RuntimeException. "Conditional read not allowed")))
   (if-let [ch (read-char rdr)]
     (let [splicing (= ch \@)
           ch (if splicing (read-char rdr) ch)]
@@ -690,63 +689,12 @@
     'clojure.core/array-map))
 
 (defn- syntax-quote* [form]
-  (->>
-   (cond
-    (special-symbol? form) (list 'quote form)
-
-    (symbol? form)
-    (list 'quote
-          (if (namespace form)
-            (let [maybe-class ((ns-map *ns*)
-                               (symbol (namespace form)))]
-              (if (class? maybe-class)
-                (symbol (.getName ^Class maybe-class) (name form))
-                (resolve-symbol form)))
-            (let [sym (str form)]
-              (cond
-               (.endsWith sym "#")
-               (register-gensym form)
-
-               (.startsWith sym ".")
-               form
-
-               :else (resolve-symbol form)))))
-
-    (unquote? form) (second form)
-    (unquote-splicing? form) (throw (IllegalStateException. "unquote-splice not in list"))
-
-    (coll? form)
-    (cond
-
-     (instance? IRecord form) form
-     (map? form) (syntax-quote-coll (map-func form) (flatten-map form))
-     (vector? form) (list 'clojure.core/vec (syntax-quote-coll nil form))
-     (set? form) (syntax-quote-coll 'clojure.core/hash-set form)
-     (or (seq? form) (list? form))
-     (let [seq (seq form)]
-       (if seq
-         (syntax-quote-coll nil seq)
-         '(clojure.core/list)))
-
-     :else (throw (UnsupportedOperationException. "Unknown Collection type")))
-
-    (or (keyword? form)
-        (number? form)
-        (char? form)
-        (string? form)
-        (nil? form)
-        (instance? Boolean form)
-        (instance? Pattern form))
-    form
-
-    :else (list 'quote form))
-   (add-meta form)))
+  (add-meta form (cond (special-symbol? form) (list (quote quote) form) (symbol? form) (list (quote quote) (if (namespace form) (let [maybe-class ((ns-map *ns*) (symbol (namespace form)))] (if (class? maybe-class) (symbol (.getName maybe-class) (name form)) (resolve-symbol form))) (let [sym (str form)] (cond (.endsWith sym "#") (register-gensym form) (.startsWith sym ".") form :else (resolve-symbol form))))) (unquote? form) (second form) (unquote-splicing? form) (throw (IllegalStateException. "unquote-splice not in list")) (coll? form) (cond (instance? IRecord form) form (map? form) (syntax-quote-coll (map-func form) (flatten-map form)) (vector? form) (list (quote clojure.core/vec) (syntax-quote-coll nil form)) (set? form) (syntax-quote-coll (quote clojure.core/hash-set) form) (or (seq? form) (list? form)) (let [seq (seq form)] (if seq (syntax-quote-coll nil seq) (quote (clojure.core/list)))) :else (throw (UnsupportedOperationException. "Unknown Collection type"))) (or (keyword? form) (number? form) (char? form) (string? form) (nil? form) (instance? Boolean form) (instance? Pattern form)) form :else (list (quote quote) form))))
 
 (defn- read-syntax-quote
   [rdr backquote opts pending-forms]
   (binding [gensym-env {}]
-    (-> (read* rdr true nil opts pending-forms)
-      syntax-quote*)))
+    (syntax-quote* (read* rdr true nil opts pending-forms))))
 
 (defn- read-namespaced-map
   [rdr _ opts pending-forms]

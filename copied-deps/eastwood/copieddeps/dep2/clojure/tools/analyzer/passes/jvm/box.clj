@@ -43,18 +43,14 @@
     (if validated?
       ast
       (assoc ast :args (mapv -box args)
-             :o-tag Object :tag (if (not (#{Void Void/TYPE} tag))
-                                  tag
-                                  Object)))))
+             :o-tag Object :tag (if-not (#{Void/TYPE Void} tag) tag Object)))))
 
 (defmethod box :static-call
   [{:keys [args validated? tag] :as ast}]
   (if validated?
     ast
     (assoc ast :args (mapv -box args)
-           :o-tag Object :tag (if (not (#{Void Void/TYPE} tag))
-                                tag
-                                Object))))
+           :o-tag Object :tag (if-not (#{Void/TYPE Void} tag) tag Object))))
 
 (defmethod box :new
   [{:keys [args validated?] :as ast}]
@@ -188,8 +184,7 @@
                 (update-in [:catches] #(mapv -box %))
                 (update-in [:body] -box)
                 (update-in [:o-tag] u/box)))]
-    (-> ast
-      (update-in [:finally] -box))))
+    (update-in ast [:finally] -box)))
 
 (defmethod box :invoke
   [ast]

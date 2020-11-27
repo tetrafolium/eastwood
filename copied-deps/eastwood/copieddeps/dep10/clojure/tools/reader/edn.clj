@@ -290,7 +290,7 @@
 
     (let [o (read rdr true nil opts)]
       (if (instance? IMeta o)
-        (with-meta o (merge (meta o) m))
+        (vary-meta o merge m)
         (err/throw-bad-metadata-target rdr o)))))
 
 (defn- read-set

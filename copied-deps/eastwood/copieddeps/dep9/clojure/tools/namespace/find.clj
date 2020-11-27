@@ -39,9 +39,7 @@
   [& body]
   `(try ~@body
         (catch Exception e#
-          (if (= :reader-exception (:type (ex-data e#)))
-            nil
-            (throw e#)))))
+          (when-not (= :reader-exception (:type (ex-data e#))) (throw e#)))))
 
 ;;; Finding namespaces in a directory tree
 

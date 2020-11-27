@@ -25,7 +25,7 @@
 
 (defmacro compile-when [cond & then]
   (when (eval cond)
-    `(do ~@then)))
+    `(unquote-splicing then)))
 
 (defn ex-info? [ex]
   (instance? clojure.lang.ExceptionInfo ex))

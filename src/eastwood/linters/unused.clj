@@ -121,7 +121,7 @@ selectively disable such warnings if they wish."
                             (remove ignore-arg?)
                             set)]
           unused-sym unused
-          :let [loc (-> unused-sym meta)]]
+          :let [loc (meta unused-sym)]]
       {:loc loc
        :linter :unused-fn-args
        :msg (format "Function arg %s never used" unused-sym)})))
@@ -227,7 +227,7 @@ Example: (all-suffixes [1 2 3])
                             (map :form)
                             (remove ignore-local-symbol?))]
           unused-sym unused
-          :let [loc (or (pass/has-code-loc? (-> unused-sym meta))
+          :let [loc (or (pass/has-code-loc? (meta unused-sym))
                         (pass/code-loc (pass/nearest-ast-with-loc expr)))]]
       {:loc loc
        :linter :unused-locals
@@ -351,20 +351,7 @@ Example: (all-suffixes [1 2 3])
 
 
 (defn- mark-things-in-defprotocol-expansion-post [ast]
-  (if (not (util/ast-expands-macro ast #{'clojure.core/defprotocol}))
-    ast
-    (let [defprotocol-var (get-in ast [:ret :expr :val])
-          ;; Mark the second statement, the interface
-          ast (update-in ast
-                         [:statements 1 :eastwood/defprotocol-expansion-interface]
-                         (constantly defprotocol-var))
-          sigs (get-in ast [:statements 3])]
-      ;; If the 4th statement, the signatures, is nil, mark that ast
-      ;; node, too.
-      (if (nil? (:form sigs))
-        (update-in ast [:statements 3 :eastwood/defprotocol-expansion-sigs]
-                   (constantly defprotocol-var))
-        ast))))
+  (if-not (util/ast-expands-macro ast #{(quote clojure.core/defprotocol)}) ast (let [defprotocol-var (get-in ast [:ret :expr :val]) ast (update-in ast [:statements 1 :eastwood/defprotocol-expansion-interface] (constantly defprotocol-var)) sigs (get-in ast [:statements 3])] (if (nil? (:form sigs)) (update-in ast [:statements 3 :eastwood/defprotocol-expansion-sigs] (constantly defprotocol-var)) ast))))
 
 (defn mark-things-in-defprotocol-expansion
   "Return an ast that is identical to the argument, except that
@@ -432,7 +419,7 @@ discarded inside null: null'."
         form (:form stmt)
         loc (or (pass/has-code-loc?
                  (case stmt-desc-str
-                   "function call" (-> stmt :meta)
+                   "function call" (:meta stmt)
                    "static method call" (-> stmt :form meta)))
                 (pass/code-loc (pass/nearest-ast-with-loc stmt)))
         ;; If warning-unused-static had no info about method m, but
@@ -535,44 +522,14 @@ discarded inside null: null'."
                                   (mapcat :statements)
                                   (mapcat unused-exprs-to-check))
         should-use-ret-val-exprs
-        (->> unused-ret-val-exprs
-             (filter #(or (#{:const :var :local} (:op %))
-                          (util/invoke-expr? %)
-                          (util/static-call? %))))]
+        (filter (fn* [p1__3497349#] (or (#{:const :var :local} (:op p1__3497349#)) (util/invoke-expr? p1__3497349#) (util/static-call? p1__3497349#))) unused-ret-val-exprs)]
     (remove nil?
      (for [stmt should-use-ret-val-exprs]
        ;; See Note 1
        (cond
         (and (#{:const :var :local} (:op stmt))
              (= location :outside-try))
-        (if (or
-             (get stmt :eastwood/defprotocol-expansion-interface)  ; Note 2
-             (get stmt :eastwood/defprotocol-expansion-sigs)  ; Note 3
-             (util/interface? (:form stmt))  ; Note 4
-             (and (nil? (:form stmt))  ; Note 5
-                  (util/ast-expands-macro stmt #{'clojure.core/comment
-                                                 'clojure.core/gen-class})))
-          nil  ; no warning
-          (let [name-found? (contains? (-> stmt :env) :name)
-                loc (or
-                     (pass/has-code-loc? (-> stmt :raw-forms first meta))
-                     (if name-found?
-                       (-> stmt :env :name meta)
-                       (pass/code-loc (pass/nearest-ast-with-loc stmt))))]
-            {:loc loc
-             :linter :unused-ret-vals
-             :unused-ret-vals {:kind (:op stmt), :ast stmt}
-             :msg (format "%s value is discarded%s: %s"
-                          (op-desc (:op stmt))
-                          (if name-found?
-                            (str " inside " (-> stmt :env :name))
-                            "")
-                          (if (nil? (:form stmt))
-                            "nil"
-                            (str/trim-newline
-                             (with-out-str
-                               (binding [pp/*print-right-margin* nil]
-                                 (pp/pprint (:form stmt)))))))}))
+        (when-not (or (get stmt :eastwood/defprotocol-expansion-interface) (get stmt :eastwood/defprotocol-expansion-sigs) (util/interface? (:form stmt)) (and (nil? (:form stmt)) (util/ast-expands-macro stmt #{(quote clojure.core/gen-class) (quote clojure.core/comment)}))) (let [name-found? (contains? (:env stmt) :name) loc (or (pass/has-code-loc? (-> stmt :raw-forms first meta)) (if name-found? (-> stmt :env :name meta) (pass/code-loc (pass/nearest-ast-with-loc stmt))))] {:unused-ret-vals {:ast stmt, :kind (:op stmt)}, :linter :unused-ret-vals, :msg (format "%s value is discarded%s: %s" (op-desc (:op stmt)) (if name-found? (str " inside " (-> stmt :env :name)) "") (if (nil? (:form stmt)) "nil" (str/trim-newline (with-out-str (binding [pp/*print-right-margin* nil] (pp/pprint (:form stmt))))))), :loc loc}))
 
         (util/static-call? stmt)
         (let [m (select-keys stmt [:class :method])
@@ -625,15 +582,11 @@ discarded inside null: null'."
                                          (-> % :raw-forms first meta))))]
     (for [ast macro-invokes
           :let [orig-form (-> ast :raw-forms first)
-                loc (-> orig-form meta)
+                loc (meta orig-form)
                 ;; The ::resolved-op key was added recently to t.a(.j)
                 ;; libs to record the resolution of Var names in
                 ;; :raw-forms.
-                non-loc-meta-keys (-> (set (keys loc))
-                                      (set/difference #{:file :line :column
-                                                        :end-line :end-column
-                                                        :eastwood.copieddeps.dep1.clojure.tools.analyzer/resolved-op
-                                                        }))
+                non-loc-meta-keys (set/difference (set (keys loc)) #{:file :end-column :column :eastwood.copieddeps.dep1.clojure.tools.analyzer/resolved-op :line :end-line})
                 resolved-macro-symbol (-> ast :raw-forms first
                                           util/fqsym-of-raw-form)
                 removed-meta-keys

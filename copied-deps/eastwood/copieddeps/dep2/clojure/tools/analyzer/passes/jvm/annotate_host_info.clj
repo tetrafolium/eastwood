@@ -26,14 +26,7 @@
   (case op
     (:reify :deftype)
     (let [all-methods
-          (into #{}
-                (mapcat (fn [class]
-                          (mapv (fn [method]
-                                  (dissoc method :exception-types))
-                                (filter (fn [{:keys [flags return-type]}]
-                                          (and return-type (not-any? #{:final :static} flags)))
-                                        (members class))))
-                        (conj interfaces Object)))]
+          (set (mapcat (fn [class] (mapv (fn [method] (dissoc method :exception-types)) (filter (fn [{:keys [flags return-type]}] (and return-type (not-any? #{:static :final} flags))) (members class)))) (conj interfaces Object)))]
       (assoc ast :methods (mapv (fn [ast]
                                   (let [name (:name ast)
                                         argc (count (:params ast))]
@@ -54,11 +47,7 @@
                      (u/maybe-class-literal (:class class)))
 
           ast (if the-class
-                (-> ast
-                  (assoc :class (assoc (ana/analyze-const the-class env :class)
-                                  :form  (:form class)
-                                  :tag   Class
-                                  :o-tag Class)))
+                (assoc ast :class (assoc (ana/analyze-const the-class env :class) :form (:form class) :tag Class :o-tag Class))
                 ast)]
       (assoc-in ast [:local :tag]  (-> ast :class :val)))
 

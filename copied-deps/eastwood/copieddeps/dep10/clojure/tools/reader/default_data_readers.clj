@@ -46,7 +46,7 @@
         :else (loop [b (StringBuilder. s)]
                 (if (< (.length b) width)
                   (recur (.append b \0))
-                  (.toString b)))))
+                  (str b)))))
 
 (def parse-timestamp
      "Parse a string containing an RFC3339-like like timestamp.

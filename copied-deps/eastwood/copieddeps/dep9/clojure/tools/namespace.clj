@@ -146,8 +146,7 @@
 
 (defn- filenames-in-jar [^JarFile jar-file]
   (map #(.getName ^JarEntry %)
-       (filter #(not (.isDirectory ^JarEntry %))
-               (enumeration-seq (.entries jar-file)))))
+       (remove .isDirectory (enumeration-seq (.entries jar-file)))))
 
 ;;; Finding namespaces in JAR files
 

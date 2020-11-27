@@ -59,14 +59,7 @@
         ;; second check (race condition with locking)
         (if available?
           value
-          (do
-            ;; fun may throw - will retry on next deref
-            (let [v (fun)]
-              ;; this ordering is important - MUST set value before setting available?
-              ;; or you have a race with the first check above
-              (set! value v)
-              (set! available? true)
-              v)))))))
+          (let [v (fun)] (set! value v) (set! available? true) v))))))
 
 (defn ^:private d-lay [fun]
   (->RetryingDelay fun false nil))
