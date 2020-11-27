@@ -114,7 +114,7 @@
 
 ;; A function like this in data.json gave :constant-test warnings
 ;; before.  I don't see yet why that might happen.  Answer:
-;; pprint/formatter-out is a macro, not a function.  It exapnds to
+;; pprint/formatter-out is a macro, not a function.  It expands to
 ;; include an expression of the form (if (string? "string-arg")
 ;; then-expr else-expr).  That is what causes the warning.
 

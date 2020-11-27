@@ -153,7 +153,7 @@
 ;; return the corresponding value in the column 'local symbol bound'.
 
 ;; There should be no warnings for this function.  It simply
-;; demonstates most of the kinds of things that can legally be inside
+;; demonstrates most of the kinds of things that can legally be inside
 ;; the vector after a :keys key in associative destructuring.  (It
 ;; leaves out symbols that have no namespace, but there are plenty of
 ;; examples of that elsewhere in this file.)

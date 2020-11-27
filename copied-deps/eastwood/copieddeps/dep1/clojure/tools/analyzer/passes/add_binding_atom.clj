@@ -12,7 +12,7 @@
 
 (defn add-binding-atom
   "Adds an atom-backed-map to every local binding,the same
-   atom will be shared between all occurences of that local.
+   atom will be shared between all occurrences of that local.
 
    The atom is put in the :atom field of the node."
   {:pass-info {:walk :pre :depends #{#'uniquify-locals} :state (fn [] (atom {}))}}
